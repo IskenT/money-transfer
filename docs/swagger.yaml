@@ -1,0 +1,232 @@
+definitions:
+  github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse:
+    properties:
+      error:
+        example: insufficient funds
+        type: string
+    type: object
+  github_com_IskenT_money-transfer_internal_infra_http_model.TransactionResponse:
+    properties:
+      amount:
+        example: 1000
+        type: integer
+      amount_formatted:
+        example: $10.00
+        type: string
+      created_at:
+        example: "2023-04-10T12:34:56Z"
+        type: string
+      note:
+        example: Transfer to Jane
+        type: string
+      payment_source:
+        example: TRANSFER
+        type: string
+      stan:
+        example: TRX1647881234567
+        type: string
+      state:
+        example: COMPLETED
+        type: string
+      transaction_type:
+        example: DEBIT
+        type: string
+      updated_at:
+        example: "2023-04-10T12:34:56Z"
+        type: string
+    type: object
+  github_com_IskenT_money-transfer_internal_infra_http_model.TransferRequest:
+    properties:
+      amount:
+        example: 1000
+        type: integer
+      from_user_id:
+        example: "1"
+        type: string
+      to_user_id:
+        example: "2"
+        type: string
+    type: object
+  github_com_IskenT_money-transfer_internal_infra_http_model.TransferResponse:
+    properties:
+      amount:
+        example: 1000
+        type: integer
+      amount_formatted:
+        example: $10.00
+        type: string
+      completed_at:
+        example: "2023-04-10T12:34:56Z"
+        type: string
+      created_at:
+        example: "2023-04-10T12:34:56Z"
+        type: string
+      credit_tx:
+        $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.TransactionResponse'
+      debit_tx:
+        $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.TransactionResponse'
+      from_user_id:
+        example: "1"
+        type: string
+      id:
+        example: TRF1647881234567
+        type: string
+      state:
+        example: COMPLETED
+        type: string
+      to_user_id:
+        example: "2"
+        type: string
+    type: object
+  github_com_IskenT_money-transfer_internal_infra_http_model.UserResponse:
+    properties:
+      balance:
+        example: 10000
+        type: integer
+      balance_formatted:
+        example: $100.00
+        type: string
+      id:
+        example: "1"
+        type: string
+      name:
+        example: Mark
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/transfers:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all transfers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.TransferResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+      summary: List all transfers
+      tags:
+      - transfers
+    post:
+      consumes:
+      - application/json
+      description: Transfer money from one user to another
+      parameters:
+      - description: Transfer details
+        in: body
+        name: transfer
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.TransferResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+      summary: Create a new money transfer
+      tags:
+      - transfers
+  /api/transfers/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get transfer details by ID
+      parameters:
+      - description: Transfer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.TransferResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+      summary: Get a specific transfer
+      tags:
+      - transfers
+  /api/users:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.UserResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+      summary: List all users
+      tags:
+      - users
+  /api/users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get user details by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.UserResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_IskenT_money-transfer_internal_infra_http_model.ErrorResponse'
+      summary: Get a specific user
+      tags:
+      - users
+swagger: "2.0"
