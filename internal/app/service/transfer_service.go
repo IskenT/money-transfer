@@ -7,12 +7,14 @@ import (
 
 	"github.com/IskenT/money-transfer/internal/domain/model"
 	"github.com/IskenT/money-transfer/internal/domain/repository"
+	"github.com/IskenT/money-transfer/pkg/utils"
 )
 
 // TransferService
 type TransferService struct {
 	userRepo     repository.UserRepository
 	transferRepo repository.TransferRepository
+	idGenerator  *utils.IDGenerator
 	mu           sync.Mutex
 }
 
@@ -21,6 +23,7 @@ func NewTransferService(userRepo repository.UserRepository, transferRepo reposit
 	return &TransferService{
 		userRepo:     userRepo,
 		transferRepo: transferRepo,
+		idGenerator:  utils.NewIDGenerator(),
 	}
 }
 
@@ -54,7 +57,8 @@ func (s *TransferService) CreateTransfer(fromUserID, toUserID string, amount int
 	}
 
 	now := time.Now()
-	stan := model.Stan(fmt.Sprintf("TRX%d", time.Now().UnixNano()))
+	txID := s.idGenerator.GenerateTransactionID()
+	stan := model.Stan(txID)
 
 	debitTx := &model.Transaction{
 		Stan:            stan,
@@ -79,7 +83,7 @@ func (s *TransferService) CreateTransfer(fromUserID, toUserID string, amount int
 	}
 
 	transfer := &model.Transfer{
-		ID:         fmt.Sprintf("TRF%d", time.Now().UnixNano()),
+		ID:         s.idGenerator.GenerateTransferID(),
 		FromUserID: fromUserID,
 		ToUserID:   toUserID,
 		Amount:     amount,

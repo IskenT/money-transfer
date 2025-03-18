@@ -1,98 +1,94 @@
-# Money Transfer System - Package Structure
+# Money Transfer System
 
-This document outlines the recommended package structure for the Money Transfer System using Hexagonal Architecture and Domain-Driven Design principles.
+A concurrent money transfer system built in Go that allows users to transfer money between accounts with atomic updates, overdraft prevention, and a REST API.
 
-## Project Layout
+## Features
 
-```
-money-transfer/
-├── api/                     # API Documentation
-│   ├── swagger.json
-│   └── swagger.yaml
-├── cmd/                     # Entry points for the application
-│   └── server/
-│       └── main.go          # Main entry point for the server
-├── docs/                    # Swagger generated documentation
-│   ├── docs.go
-│   ├── swagger.json
-│   └── swagger.yaml
-├── internal/                # Private application code
-│   ├── domain/              # Domain Layer - Core business logic
-│   │   ├── model/           # Domain models
-│   │   │   ├── user.go
-│   │   │   ├── transaction.go
-│   │   │   ├── transfer.go
-│   │   │   └── errors.go
-│   │   └── repository/      # Repository interfaces
-│   │       ├── user_repository.go
-│   │       └── transfer_repository.go
-│   ├── app/                 # Application Layer - Use cases
-│   │   └── service/
-│   │       └── transfer_service.go
-│   └── infra/               # Infrastructure Layer
-│       ├── repository/      # Repository implementations
-│       │   └── memory/      # In-memory storage implementation
-│       │       ├── user_repository.go
-│       │       └── transfer_repository.go
-│       └── http/            # HTTP-related code
-│           ├── handler/     # HTTP handlers
-│           │   ├── transfer_handler.go
-│           │   └── user_handler.go
-│           ├── middleware/  # HTTP middleware
-│           │   └── cors.go
-│           └── rest/        # REST API components
-│               └── server.go
-├── pkg/                     # Public library code
-│   └── utils/               # Shared utilities
-├── main.go                  # Main entry point
-├── go.mod                   # Go module definition
-├── go.sum                   # Go module checksums
-└── README.md                # Project documentation
+- Transfer money between user accounts
+- Atomic updates to prevent race conditions
+- Overdraft prevention (users cannot send more money than they have)
+- HTTP API for initiating transfers and querying user information
+- Comprehensive error handling
+
+## Locking Strategy
+
+The system uses a mutex-based locking strategy to ensure atomic updates and prevent race conditions during money transfers:
+
+### Coarse-Grained Locking
+
+The implementation uses a coarse-grained locking approach in the `TransferService`:
+
+```go
+// holds a single mutex for all transfer operations
+type TransferService struct {
+    userRepo     repository.UserRepository
+    transferRepo repository.TransferRepository
+    idGenerator  *utils.IDGenerator
+    mu           sync.Mutex
+}
 ```
 
-## Package Descriptions
+**Why this approach was chosen:**
 
-### Domain Layer (`internal/domain/`)
+1. **Simplicity**: A single mutex is easy to reason about and ensures that no race conditions can occur during transfers.
+2. **Atomicity**: The entire transfer operation (checking balances, debiting sender, crediting receiver, persisting the transfer) is performed as an atomic unit.
+3. **Consistency**: Since all transfers are serialized, the system will always maintain a consistent state.
 
-The core business logic and entities, independent of external concerns.
+**Trade-offs:**
 
-- **`model/`**: Contains the domain entities and value objects
-  - `user.go`: User entity with ID, name, and balance
-  - `transaction.go`: Transaction entity for debit/credit operations
-  - `transfer.go`: Transfer entity linking debit and credit transactions
-  - `errors.go`: Domain-specific errors
+1. **Performance**: This approach may become a bottleneck under high load since all transfers are processed serially, not in parallel.
+2. **Scalability**: Limited to a single instance since the mutex only works within a single process.
 
-- **`repository/`**: Interfaces that define how to access domain entities
-  - `user_repository.go`: Interface for user persistence operations
-  - `transfer_repository.go`: Interface for transfer persistence operations
+### Repository-Level Concurrency Control
 
-### Application Layer (`internal/app/`)
+Each repository also implements its own mutex to protect concurrent access to the in-memory data:
 
-Use cases and services that orchestrate the domain objects.
+```go
+// has its own mutex for concurrent access
+type UserRepository struct {
+    users map[string]*model.User
+    mu    sync.RWMutex
+}
+```
 
-- **`service/`**: Application services that implement use cases
-  - `transfer_service.go`: Service for creating and managing transfers
+## Getting Started
 
-### Infrastructure Layer (`internal/infra/`)
+### Installation
 
-Implementation of interfaces defined in the domain layer.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/IskenT/money-transfer.git
+   cd money-transfer
+   ```
 
-- **`repository/memory/`**: In-memory implementations of repository interfaces
-  - `user_repository.go`: In-memory user storage
-  - `transfer_repository.go`: In-memory transfer storage
+2. Build the application:
+   ```bash
+   make build
+   ```
 
-- **`http/`**: HTTP-related code
-  - `handler/`: HTTP handlers for API endpoints
-  - `middleware/`: HTTP middleware components
-  - `rest/`: REST API server setup
+3. Run the application:
+   ```bash
+   make run
+   ```
 
-### Entry Points (`cmd/`)
+The API will be available at `http://localhost:8080` with Swagger documentation at `http://localhost:8080/swagger/index.html`.
 
-Entry points to the application.
+### Running Tests
 
-- **`server/`**: HTTP server entry point
-  - `main.go`: Configures and starts the HTTP server
+```bash
+make test
+```
 
-### API Documentation (`api/` and `docs/`)
+## API Endpoints
 
-Swagger documentation for the REST API.
+- `POST /api/transfers` - Create a new transfer
+- `GET /api/transfers` - List all transfers
+- `GET /api/transfers/{id}` - Get transfer details
+- `GET /api/users` - List all users with their balances
+- `GET /api/users/{id}` - Get user details by ID
+
+## Initial Account Balances
+
+- Mark: $100.00
+- Jane: $50.00
+- Adam: $0.00
