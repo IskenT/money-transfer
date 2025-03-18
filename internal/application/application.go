@@ -11,25 +11,45 @@ import (
 	"time"
 
 	"github.com/IskenT/money-transfer/internal/app/service"
+	"github.com/IskenT/money-transfer/internal/config"
+	"github.com/IskenT/money-transfer/internal/infra/database"
 	"github.com/IskenT/money-transfer/internal/infra/http/middleware"
 	"github.com/IskenT/money-transfer/internal/infra/http/router"
-	"github.com/IskenT/money-transfer/internal/infra/repository/memory"
+	repository "github.com/IskenT/money-transfer/internal/infra/repository/factory"
+	"github.com/jmoiron/sqlx"
 )
 
-// Application
+// Application represents the main application
 type Application struct {
 	server    *http.Server
 	services  *service.Services
 	router    *router.Router
 	isRunning bool
+	db        *sqlx.DB
+	txManager *database.TransactionManager
 }
 
 // NewApplication
 func NewApplication() *Application {
-	userRepo := memory.NewUserRepository()
-	transferRepo := memory.NewTransferRepository()
+	cfg := config.NewConfig()
 
-	transferService := service.NewTransferService(userRepo, transferRepo)
+	dbConfig := database.NewDBConfig(cfg)
+	db, err := database.NewDBWithRetry(dbConfig, 5, 3*time.Second)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	txManager := database.NewTransactionManager(db)
+
+	repoFactory := repository.NewFactory(txManager)
+
+	userRepo, pgUserRepo := repoFactory.CreateUserRepository()
+	transferRepo, pgTransferRepo := repoFactory.CreateTransferRepository()
+
+	transferService := service.NewTransferService(
+		userRepo, transferRepo, txManager, pgUserRepo, pgTransferRepo,
+	)
+
 	services := &service.Services{
 		TransferService: transferService,
 	}
@@ -37,8 +57,10 @@ func NewApplication() *Application {
 	r := router.NewRouter(services)
 
 	server := &http.Server{
-		Addr:    ":8080",
-		Handler: middleware.ApplyCORS(r.Handler()),
+		Addr:         ":" + cfg.Server.Port,
+		Handler:      middleware.ApplyCORS(r.Handler()),
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
 	return &Application{
@@ -46,6 +68,8 @@ func NewApplication() *Application {
 		services:  services,
 		router:    r,
 		isRunning: false,
+		db:        db,
+		txManager: txManager,
 	}
 }
 
@@ -67,6 +91,10 @@ func (a *Application) Start() error {
 
 		if err := a.server.Shutdown(ctx); err != nil {
 			log.Printf("HTTP server shutdown error: %v", err)
+		}
+
+		if err := a.db.Close(); err != nil {
+			log.Printf("Database connection close error: %v", err)
 		}
 
 		log.Println("Server gracefully stopped")
@@ -95,5 +123,19 @@ func (a *Application) Stop() error {
 	defer cancel()
 
 	a.isRunning = false
-	return a.server.Shutdown(ctx)
+
+	if err := a.server.Shutdown(ctx); err != nil {
+		return err
+	}
+
+	if err := a.db.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DB
+func (a *Application) DB() *sqlx.DB {
+	return a.db
 }

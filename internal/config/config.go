@@ -23,7 +23,12 @@ type ServerConfig struct {
 // DatabaseConfig
 type DatabaseConfig struct {
 	Type     string
-	InMemory bool
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
 }
 
 // NewConfig
@@ -36,8 +41,13 @@ func NewConfig() *Config {
 			ShutdownTimeout: getEnvAsDuration("SHUTDOWN_TIMEOUT", 15*time.Second),
 		},
 		Database: DatabaseConfig{
-			Type:     getEnv("DB_TYPE", "memory"),
-			InMemory: getEnvAsBool("IN_MEMORY", true),
+			Type:     getEnv("DB_TYPE", "postgres"),
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     getEnv("DB_PORT", "5432"),
+			User:     getEnv("POSTGRES_USER", "money_transfer"),
+			Password: getEnv("POSTGRES_PASSWORD", "password"),
+			Name:     getEnv("POSTGRES_DB", "money_transfer"),
+			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 	}
 }
