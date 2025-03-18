@@ -143,6 +143,10 @@ money-transfer/
 │       ├── http/      # HTTP handlers, routers, and models
 │       └── repository/# Repository implementations
 ├── migrations/        # SQL migration files
-├── container-compose.yml  # Podman container configuration
+├── docker-compose.yml  # Podman container configuration
 └── Makefile           # Build and run commands
 ```
+
+
+
+![alt text](image.png)
