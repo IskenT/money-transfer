@@ -69,37 +69,37 @@ db-start:
 	fi
 	
 	@echo "Waiting for database to be ready..."
-	@for i in $$(seq 1 10); do \
+	@for i in $$(seq 1 30); do \
 		if podman exec money-transfer-db pg_isready -U money_transfer &> /dev/null; then \
 			echo "Database is ready!"; \
 			break; \
 		fi; \
-		if [ $$i -eq 10 ]; then \
+		if [ $$i -eq 30 ]; then \
 			echo "Error: Database failed to become ready within the timeout period."; \
 			exit 1; \
 		fi; \
-		echo "Waiting for database to start (attempt $$i/10)..."; \
-		sleep 3; \
+		echo "Waiting for database to start (attempt $$i/30)..."; \
+		sleep 2; \
 	done
 
-# Check 
+# Check migrations and apply if needed
 migrate-check:
 	@echo "Checking and applying migrations if needed..."
 	@mkdir -p $(BUILD_DIR)
 	@go build -o $(BUILD_DIR)/migrate cmd/migrate/migrate.go
 	
 	@# Wait for database to be fully available before migrations
-	@for i in $$(seq 1 10); do \
-		if PGPASSWORD=password psql -h localhost -U money_transfer -d money_transfer -c "SELECT 1" &> /dev/null; then \
+	@for i in $$(seq 1 30); do \
+		if podman exec money-transfer-db psql -U money_transfer -d money_transfer -c "SELECT 1" &> /dev/null; then \
 			echo "Database connection successful, running migrations..."; \
 			$(BUILD_DIR)/migrate up; \
 			break; \
 		fi; \
-		if [ $$i -eq 10 ]; then \
+		if [ $$i -eq 30 ]; then \
 			echo "Error: Could not connect to database for migrations."; \
 			exit 1; \
 		fi; \
-		echo "Waiting for database connection (attempt $$i/10)..."; \
+		echo "Waiting for database connection (attempt $$i/30)..."; \
 		sleep 2; \
 	done
 
